@@ -11,6 +11,18 @@
 / {
 	model = "OrangePi Zero3";
 	compatible = "xunlong,orangepi-zero3", "allwinner,sun50i-h618";
+	soc {
+		btlpm {
+			compatible = "allwinner,sunxi-btlpm";
+			status = "okay";
+			uart_index = <0x01>;
+			/*SOC pad: PG17, 20U5622: CHIP_EN - PIN6*/
+			bt_wake     = <&pio 0x06 0x11 GPIO_ACTIVE_HIGH>;
+			/*SOC pad: PG16, 20U5622: INT - PIN7*/
+			bt_hostwake = <&pio 0x06 0x10 GPIO_ACTIVE_HIGH>;
+			wakeup-source;
+		};
+	};
 };
 
 &cpu0 {

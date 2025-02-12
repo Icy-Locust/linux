@@ -14,6 +14,7 @@
 #include <linux/kgdb.h>
 #include <linux/kprobes.h>
 #include <linux/sched/task_stack.h>
+#include <asm/ptrace.h>
 
 #include <asm/debug-monitors.h>
 #include <asm/insn.h>
@@ -100,6 +101,8 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] = {
 	{ "fpsr", 4, -1 },
 	{ "fpcr", 4, -1 },
 };
+
+static DEFINE_PER_CPU(unsigned int, kgdb_pstate);
 
 char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
 {
@@ -207,6 +210,10 @@ int kgdb_arch_handle_exception(int exception_vector, int signo,
 		err = 0;
 		break;
 	case 's':
+		/* mask interrupts while single stepping */
+		__this_cpu_write(kgdb_pstate, linux_regs->pstate);
+		linux_regs->pstate |= PSR_I_BIT;
+
 		/*
 		 * Update step address value with address passed
 		 * with step packet.
@@ -252,6 +259,15 @@ NOKPROBE_SYMBOL(kgdb_compiled_brk_fn);
 
 static int kgdb_step_brk_fn(struct pt_regs *regs, unsigned long esr)
 {
+	unsigned int pstate;
+ 
+	/* restore interrupt mask status */
+	pstate = __this_cpu_read(kgdb_pstate);
+	if (pstate & PSR_I_BIT)
+		regs->pstate |= PSR_I_BIT;
+	else
+		regs->pstate &= ~PSR_I_BIT;
+
 	if (!kgdb_single_step)
 		return DBG_HOOK_ERROR;
 
